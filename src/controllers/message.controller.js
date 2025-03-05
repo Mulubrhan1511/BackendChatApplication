@@ -68,3 +68,71 @@ export const sendMessage = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+
+const typingUsers = {}; // Stores users typing for each receiver
+
+
+export const typing = async (req, res) => {
+  try {
+    const senderIdStr = req.user._id.toString(); // ✅ Convert to string
+    const receiverId = req.params.id;
+
+    if (!typingUsers[receiverId]) {
+      typingUsers[receiverId] = new Set();
+    }
+
+    // ✅ Check using string comparison
+    if (!typingUsers[receiverId].has(senderIdStr)) {
+      typingUsers[receiverId].add(senderIdStr);
+      console.log("Typing users:", typingUsers);
+    }
+
+    
+
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("user-typing", Array.from(typingUsers[receiverId]));
+    }
+
+    res.status(200).json({ typingUsers: Array.from(typingUsers[receiverId]) });
+
+  } catch (error) {
+    console.error("Error in typing controller:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+
+
+
+// Stop Typing Controller
+export const stopTyping = async (req, res) => {
+  try {
+    const senderIdStr = req.user._id.toString(); // Convert to string
+    const receiverId = req.params.id;
+
+    if (typingUsers[receiverId]) {
+      typingUsers[receiverId].delete(senderIdStr);
+      console.log("Updated Typing users:", typingUsers);
+      
+      const receiverSocketId = getReceiverSocketId(receiverId);
+      if (receiverSocketId) {
+        console.log("Emitting user-stopped-typing event", typingUsers);
+        io.to(receiverSocketId).emit("user-stopped-typing", Array.from(typingUsers[receiverId]));
+      }
+      
+
+
+    }
+
+    res.status(200).json({ typingUsers: Array.from(typingUsers[receiverId] || []) });
+  } catch (error) {
+    console.error("Error in stop typing controller:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+
