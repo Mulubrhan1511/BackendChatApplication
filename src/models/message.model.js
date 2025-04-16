@@ -20,6 +20,26 @@ const messageSchema = new mongoose.Schema({
     image:{
         type: String,
     },
+    is_read: {
+        type: Boolean,
+        default: false,
+    },
+    is_delivered: {
+        type: Boolean,
+        default: false,
+    },
+    is_deleted: {
+        type: Boolean,
+        default: false,
+    },
+    is_edited: {
+        type: Boolean,
+        default: false,
+    },
+    is_reaction: {
+        type: Boolean,
+        default: false,
+    },
 },
 { timestamps: true }
 );
