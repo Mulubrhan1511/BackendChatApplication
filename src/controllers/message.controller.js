@@ -7,7 +7,49 @@ import { getReceiverSocketId, io } from "../config/socket.js";
 export const getUsersForSidebar = async (req, res) => {
   try {
     const loggedInUserId = req.user._id;
-    const filteredUsers = await User.find({ _id: { $ne: loggedInUserId } }).select("-password");
+    const Users = await User.find({ _id: { $ne: loggedInUserId } }).select("-password");
+
+    const filteredUsers = await Promise.all(
+      Users.map(async (user) => {
+        const lastMessage = await Message.findOne({
+          $or: [
+            { senderId: loggedInUserId, receiverId: user._id },
+            { senderId: user._id, receiverId: loggedInUserId },
+          ],
+        }).sort({ createdAt: -1 });
+
+        const unReadCount = await Message.countDocuments({
+          receiverId: loggedInUserId,
+          senderId: user._id,
+          is_read: false,
+        });
+
+        
+        return {
+          ...user.toObject(),
+          lastMessage: lastMessage ? lastMessage.text : null,
+          lastMessageTime: lastMessage ? lastMessage.createdAt : null,
+          unReadCount: unReadCount,
+        };
+      })
+
+
+    );
+
+    // Sort users by last message time in descending order
+    filteredUsers.sort((a, b) => {
+      if (a.lastMessageTime && b.lastMessageTime) {
+        return new Date(b.lastMessageTime) - new Date(a.lastMessageTime);
+      }
+      if (!a.lastMessageTime && b.lastMessageTime) {
+        return 1; // a goes after b
+      }
+      if (a.lastMessageTime && !b.lastMessageTime) {
+        return -1; // a goes before b
+      }
+      return 0; // both are null
+    });
+    
 
     res.status(200).json(filteredUsers);
   } catch (error) {
@@ -130,6 +172,32 @@ export const stopTyping = async (req, res) => {
     res.status(200).json({ typingUsers: Array.from(typingUsers[receiverId] || []) });
   } catch (error) {
     console.error("Error in stop typing controller:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+// Read the selected User Messages
+export const readMessages = async (req, res) => {
+  try {
+    console.log(req.params)
+    const { id: userToChatId } = req.params;
+    const myId = req.user._id;
+
+    await Message.updateMany(
+      { senderId: userToChatId, receiverId: myId, is_read: false },
+      { $set: { is_read: true } }
+    );
+
+    const receiverSocketId = getReceiverSocketId(userToChatId);
+    if (receiverSocketId) {
+      console.log("Emitting messages-seen event", receiverSocketId);
+      io.to(receiverSocketId).emit("messages-seen", { userId: myId  });
+    }
+
+    res.status(200).json({ message: "Messages marked as read" });
+  } catch (error) {
+    console.error("Error in readMessages controller: ", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
