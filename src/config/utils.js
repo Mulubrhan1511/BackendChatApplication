@@ -5,10 +5,10 @@ export const generateToken = (userId, res) => {
         expiresIn: process.env.JWT_EXPIRE,
     });
     res.cookie("token", token, {
-        maxAge: 1000 * 60 * 60 * 24 * 30,
-        httpOnly: true,
-        sameSite:"strict",
-        secure: false,
+        maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
+        httpOnly: true,                 // Prevent access via JavaScript
+        sameSite: "none",               // Required for cross-site cookies
+        secure: true,                   // Only over HTTPS
     });
     return token;
 };
