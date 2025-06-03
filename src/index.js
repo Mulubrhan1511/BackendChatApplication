@@ -13,7 +13,7 @@ dotenv.config();
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
-    origin: ["http://localhost:5173", "http://172.20.30.10:5173"],
+    origin: ["http://localhost:5173", "https://react-chat-application-p17j.vercel.app/"],
     credentials: true
 }));
 
